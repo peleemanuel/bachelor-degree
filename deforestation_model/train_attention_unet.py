@@ -5,21 +5,30 @@ from rasterio.windows import Window
 from tensorflow.keras.utils import Sequence
 from tensorflow.keras.callbacks import ModelCheckpoint
 import geopandas as gpd
+from matplotlib import cm
+import time
 
 # Adjust this import to point to your model definition
 from unet_model import UNetAM
 from rasterio.features import rasterize
+from skimage import exposure
 
 class PatchSequence(Sequence):
     """
     Streams 512x512 patches from a GeoTIFF and its full-scene mask (.npy) on the fly.
+    Supports flexible single-band to RGB conversion via histogram stretching and colormap.
     """
-    def __init__(self, img_path, mask_path, windows, batch_size=4, normalize=True):
+    def __init__(self, img_path, mask_path, windows, batch_size=4,
+                 normalize=True, colormap='viridis', stretch_percent=(2, 98), **kwargs):
+        # Allow Keras to pass through workers/use_multiprocessing kwargs
+        super().__init__(**kwargs)
         self.img_src = rasterio.open(img_path)
         self.mask = np.load(mask_path)
         self.windows = windows
         self.bs = batch_size
         self.norm = normalize
+        self.colormap = colormap
+        self.stretch_percent = stretch_percent
 
     def __len__(self):
         return int(np.ceil(len(self.windows) / float(self.bs)))
@@ -29,20 +38,30 @@ class PatchSequence(Sequence):
         X, Y = [], []
         for row_off, col_off in batch:
             win = Window(col_off, row_off, 512, 512)
-            img = self.img_src.read(window=win)
-            img = np.transpose(img, (1, 2, 0)).astype('float32')
+
+            # Read single band directly
+            gray = self.img_src.read(1, window=win).astype('float32')
             if self.norm:
-                img /= 10000.0
-            # Transform the single-channel image into 3 different channels for RGB
-            if img.shape[-1] == 1:
-                img_r = img * 0.8  # Example transformation for the red channel
-                img_g = img * 1.0  # Example transformation for the green channel
-                img_b = img * 1.2  # Example transformation for the blue channel
-                img = np.stack([img_r, img_g, img_b], axis=-1)
+                gray /= 10000.0
+
+            # Optional: Percentile stretch for contrast enhancement
+            p_min, p_max = np.percentile(gray, self.stretch_percent)
+            gray_stretched = exposure.rescale_intensity(
+                gray, in_range=(p_min, p_max), out_range=(0, 1)
+            )
+
+            # Apply matplotlib colormap to get RGB
+            cmap = cm.get_cmap(self.colormap)
+            img_rgba = cmap(gray_stretched)
+            img = img_rgba[..., :3].astype('float32')  # drop alpha channel
+
+            # Extract corresponding mask patch
             m = self.mask[row_off:row_off+512, col_off:col_off+512]
             m = np.expand_dims(m, -1).astype('float32')
+
             X.append(img)
             Y.append(m)
+
         return np.stack(X, 0), np.stack(Y, 0)
 
 
@@ -58,14 +77,22 @@ def make_windows(width, height, patch_size=512, stride=512):
     return windows
 
 
-def train_per_folder(model, img_dir, df):
-    if os.path.exists('unet_attention_weights.h5'):
+def train_per_folder(model, img_dir, df, processed_images):
+
+    if os.path.exists('unet_attention_weights.weights.h5'):
         print("Loading existing weights...")
-        model.load_weights('unet_attention_weights.h5')
+        model.load_weights('unet_attention_weights.weights.h5')
     else:
         print("No existing weights found, starting fresh.")
     
     for fname in sorted(os.listdir(img_dir)):
+
+        # Skip if already processed
+        img_path = os.path.join(img_dir, fname)
+        if img_path in processed_images:
+            print(f"Skipping {img_path} as it has already been processed.")
+            continue
+
         if not fname.lower().endswith('.jp2'):
             continue
         img_path  = os.path.join(img_dir, fname)
@@ -122,9 +149,22 @@ def train_per_folder(model, img_dir, df):
             validation_steps=len(val_seq),
             callbacks=[chkpt]
         )
+        # Log the processed image path
+        with open('processed_images.log', 'a') as log_file:
+            log_file.write(f"{img_path}\n")
+
+        # Save stats and timestamp to a log file
+        with open('time.log', 'a') as time_log:
+            time_log.write(f"Processed {img_path} at {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
+            # Write some stats
+            time_log.write(f"Image shape: {H}x{W}, Windows: {len(windows)}, Train steps: {len(train_seq)}, Val steps: {len(val_seq)}\n")
+            # Save info about accuracy and loss
+            train_metrics = model.evaluate(train_seq, steps=len(train_seq), verbose=0)
+            val_metrics = model.evaluate(val_seq, steps=len(val_seq), verbose=0)
+            time_log.write(f"Train accuracy: {train_metrics[1]}, Val accuracy: {val_metrics[1]}\n")
 
         # Save cumulative weights to resume on next images
-        model.save_weights('unet_attention_weights.h5')
+        model.save_weights('unet_attention_weights.weights.h5')
 
     
 if __name__ == '__main__':
@@ -135,6 +175,15 @@ if __name__ == '__main__':
     # Instantiate model once, optionally load existing weights to resume
     model = UNetAM(input_size=(512,512,3), drop_rate=0.25, lr=5e-4, filter_base=16)
     # model.load_weights('unet_attention_weights.h5')  # if resuming
+
+    # Log the starting time
+    with open('time.log', 'a') as time_log:
+        time_log.write(f"Training started at: {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
+    # Load processed image paths from log file if it exists
+    processed_images = []
+    if os.path.exists('processed_images.log'):
+        with open('processed_images.log', 'r') as log_file:
+            processed_images = [line.strip() for line in log_file.readlines()]
 
     training_folders = []
 
@@ -165,7 +214,8 @@ if __name__ == '__main__':
             training_folders.append(img_data_dir)
 
     for training_folder in training_folders:
-        train_per_folder(model, training_folder, df)
+        print(f"Training on folder: {training_folder}")
+        train_per_folder(model, training_folder, df, processed_images)
 
     # Finally save the fully trained model
-    # model.save('unet_attention_ukr_all.h5')
+    model.save('unet_attention_ukr_all.h5')

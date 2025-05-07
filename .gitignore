@@ -1,1 +1,4 @@
 attention-mechanism-unet/
+unet_best*
+log.log
+*__pycache__*
