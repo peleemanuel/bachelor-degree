@@ -23,12 +23,19 @@ class PatchSequence(Sequence):
         # Allow Keras to pass through workers/use_multiprocessing kwargs
         super().__init__(**kwargs)
         self.img_src = rasterio.open(img_path)
-        self.mask = np.load(mask_path)
+        self.mask = np.load(mask_path, mmap_mode='r')
         self.windows = windows
         self.bs = batch_size
         self.norm = normalize
         self.colormap = colormap
         self.stretch_percent = stretch_percent
+
+    def __del__(self):
+        # Ensure the file handle is closed when the sequence is garbage-collected
+        try:
+            self.img_src.close()
+        except:
+            pass
 
     def __len__(self):
         return int(np.ceil(len(self.windows) / float(self.bs)))
@@ -101,18 +108,17 @@ def train_per_folder(model, img_dir, df, processed_images):
             H, W = src.height, src.width
             meta = src.meta
             mask_path = os.path.join(img_dir, fname.replace('.jp2', '_mask.npy'))
-            if not os.path.exists(mask_path):
-                print(f"Creating mask for {fname}...")
+
             # Transform polygons to the raster CRS
-            df = df.to_crs(meta['crs'])
+            df_crs = df.to_crs(meta['crs'])
             
             # Create shapes from the geometries
-            shapes = [(geom, 1) for geom in df.geometry]
+            shapes = [(geom, 1) for geom in df_crs.geometry]
             
             # Rasterize the shapes to create the mask
             mask = rasterize(
                 shapes,
-                out_shape=(src.height, src.width),
+                out_shape=(H, W),
                 transform=src.transform,
                 fill=0,
                 dtype='uint8'
@@ -153,6 +159,13 @@ def train_per_folder(model, img_dir, df, processed_images):
         with open('processed_images.log', 'a') as log_file:
             log_file.write(f"{img_path}\n")
 
+
+        import gc
+        gc.collect()
+
+        from tensorflow.keras import backend as K
+        K.clear_session()  # Clear the session to free up resources
+
         # Save stats and timestamp to a log file
         with open('time.log', 'a') as time_log:
             time_log.write(f"Processed {img_path} at {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
@@ -162,6 +175,8 @@ def train_per_folder(model, img_dir, df, processed_images):
             train_metrics = model.evaluate(train_seq, steps=len(train_seq), verbose=0)
             val_metrics = model.evaluate(val_seq, steps=len(val_seq), verbose=0)
             time_log.write(f"Train accuracy: {train_metrics[1]}, Val accuracy: {val_metrics[1]}\n")
+
+        del train_seq, val_seq  # Free up memory
 
         # Save cumulative weights to resume on next images
         model.save_weights('unet_attention_weights.weights.h5')
