@@ -2,23 +2,45 @@
 import sys
 import piexif
 from enum import Enum
-from pathlib import Path
 
 class DroneType(Enum):
     SELF_MADE_DRONE = "selfMadeDrone"
     DJI = "DJI"
+    DJI_MINI_4K = "DJIMini4K"
+
+class DroneInteface():
+    def __init__(self, drone_type: DroneType, sensor_width: float,focal_length: float):
+        self.drone_type = drone_type # Drone Type
+        self.sensor_width = sensor_width # Sensor width in mm
+        self.focal_length = focal_length # Focal length in mm
+
+    def __str__(self):
+        return f"DroneInteface(drone_type={self.drone_type}, sensor_width={self.sensor_width}, focal_length={self.focal_length})"
+
+class SelfMadeDrone(DroneInteface):
+    def __init__(self):
+        super().__init__(DroneType.SELF_MADE_DRONE, 5.02 , 6)
+
+class DJI(DroneInteface):
+    def __init__(self, sensor_width: float, focal_length: float):
+        super().__init__(DroneType.DJI, sensor_width, focal_length)
+
+class DJIMini4K(DroneInteface):
+    def __init__(self):
+        super().__init__(DroneType.DJI_MINI_4K, 6.3 / 5, 4.5)
 
 class GPSInfo():
     """
     Class that will save the GPS information from an image and its path
     """
-    def __init__(self, path: 'Path', drone_type: DroneType, secondary_file: str = None):
-        self.path = Path(path)
-        self.lat = None
-        self.lon = None
-        self.alt = None
-        self.secondary_file = secondary_file
-        self.drone_type = drone_type
+    def __init__(self, path: str, drone_type: DroneType, secondary_file: str = None):
+        self.path = path
+        self.lat = None # Latitude in degrees
+        self.lon = None # Longitude in degrees
+        self.alt = None # Altitude in meters
+        self.image_direction = 0 # Image direction in degrees
+        self.secondary_file = secondary_file # Secondary file path for self-made drone
+        self.drone_type = drone_type # Drone type
 
     def __str__(self):
         return f"GPSInfo(path={self.path}, lat={self.lat}, lon={self.lon}, alt={self.alt})"
@@ -32,7 +54,7 @@ class GPSInfo():
     def extract_gps_info(self):
         if self.drone_type == DroneType.SELF_MADE_DRONE:
             return self.extract_gps_info_from_self_made_drone()
-        elif self.drone_type == DroneType.DJI:
+        elif self.drone_type == DroneType.DJI or self.drone_type == DroneType.DJI_MINI_4K:
             return self.extract_gps_info_from_dji()
         else:
             raise ValueError("Unknown drone type")
@@ -56,6 +78,11 @@ class GPSInfo():
         alt = gps_ifd.get(piexif.GPSIFD.GPSAltitude, None)
         alt_ref = gps_ifd.get(piexif.GPSIFD.GPSAltitudeRef, 0)
 
+        img_direction = gps_ifd.get(piexif.GPSIFD.GPSImgDirection, None)
+
+        if img_direction:
+            self.image_direction = img_direction[0] / img_direction[1]
+
         if lat and lon:
             lat_deg = self.convert_to_degrees(lat)
             lon_deg = self.convert_to_degrees(lon)
@@ -67,9 +94,7 @@ class GPSInfo():
             lat_deg = lon_deg = None
 
         if alt is not None:
-            # alt este un tuple (num, den)
             alt_value = alt[0] / alt[1]
-            # dacă alt_ref == 1 înseamnă valoare negativă
             if alt_ref == 1:
                 alt_value = -alt_value
         else:
@@ -88,5 +113,8 @@ if __name__ == "__main__":
     path = sys.argv[1]
     drone_type = DroneType.DJI
 
+    gps_info = GPSInfo(path, drone_type)
+    gps_info.extract_gps_info()
+    print(gps_info)
 
 
