@@ -45,7 +45,7 @@ def latlon_to_pixel(lat, lon, gps_info, gsd, img_width, img_height):
     """
     Convert a lat/lon point (or any X/Y in same units) into pixel (x, y)
     relative to the center of img of size (img_width, img_height).
-    - gsd: ground‐sample‐distance in cm/pixel
+    - gsd: ground sample distance in cm/pixel
     - gps_info.lat/lon: center of image
     - gps_info.image_direction: rotation in degrees from north
     """

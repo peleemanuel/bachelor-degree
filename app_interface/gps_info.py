@@ -27,7 +27,7 @@ class DJI(DroneInteface):
 
 class DJIMini4K(DroneInteface):
     def __init__(self):
-        super().__init__(DroneType.DJI_MINI_4K, 6.3 / 5, 4.5)
+        super().__init__(DroneType.DJI_MINI_4K, 6.3 / 4, 4.5)
 
 class GPSInfo():
     """
