@@ -27,6 +27,7 @@ class TraceCreator:
         self.coords_for_each_image = []
         self.polygons = []
         self.unified_polygon = None
+        self.unified_polygon_area_perc = 0.0
 
     def generate_informations(self):
         # Given folder path should contain 2 images at least otherwise it will not work
@@ -181,6 +182,7 @@ class TraceCreator:
     def get_one_polygon(self):
         # Unify all polygons into one
         if self.unified_polygon is None:
+            self.unified_polygon_area_perc = 100.0
             self.unified_polygon = self.polygons[0]["polygon"]
             for existing in self.polygons[1:]:
                 existing_poly = existing["polygon"]
@@ -217,11 +219,24 @@ class TraceCreator:
             return True
         return False
 
+    def object_still_relevant(self):
+        """Check if the unified polygon is still relevant, i.e., it has a non-zero area."""
+        if self.unified_polygon is None:
+            return False
+        return self.unified_polygon.area > 5.0
+
     def update_all_polygons(self, new_unique_poly):
         """Remove all intersecting zones from the existing polygons and the unified polygon."""
         if self.unified_polygon is None or new_unique_poly is None:
             return
         
+        base_area = self.unified_polygon.area
+        intersection_area = self.unified_polygon.intersection(new_unique_poly).area
+        intersection_area_perc = intersection_area / base_area * 100
+        self.unified_polygon_area_perc = self.unified_polygon_area_perc - (intersection_area_perc / 100 * self.unified_polygon_area_perc)
+        print(f"Overlap percentage: {intersection_area_perc:.2f}%")
+        print(f"New unified polygon area percentage: {self.unified_polygon_area_perc:.2f}%")
+
         # Remove intersecting zones from the unified polygon
         if self.unified_polygon.intersects(new_unique_poly):
             self.unified_polygon = self.unified_polygon.difference(new_unique_poly)

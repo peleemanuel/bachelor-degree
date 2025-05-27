@@ -45,3 +45,10 @@ if __name__ == "__main__":
     if trace1.check_overlapping_unique(trace2.unified_polygon):
         # Compare the overlapping zones
         compare_overlapping_zones(trace1, trace2, figwidth=6, figheight=4)
+        trace1.update_all_polygons(trace2.unified_polygon)
+        m2 = folium.Map(location=[center_lat, center_lon], zoom_start=15)
+        trace1.get_trace_map(m2)
+        trace2.get_trace_map(m2)
+        out_map2 = "overlapping_zones_map.html"
+        m2.save(out_map2)
+        print(f"Overlapping zones map saved to {out_map2}")
