@@ -2,6 +2,7 @@ import pytest
 import piexif
 from trace_viewer.drones import DroneRegistry, DroneSpec, DroneType
 from trace_viewer.gps import GPSInfo
+from PIL import Image
 
 # Test DroneRegistry functionality
 def test_drone_registry_contains_builtins():
@@ -24,33 +25,34 @@ def test_drone_specs(dtype, sensor, focal):
     assert spec.focal_length_mm == pytest.approx(focal)
 
 # Test GPSInfo EXIF parsing
-def make_test_exif(tmp_path, lat_vals, lat_ref, lon_vals, lon_ref, alt_val=None, alt_ref=0, img_dir=None):
+def make_test_exif(tmp_path, lat_vals, lat_ref, lon_vals, lon_ref,
+                   alt_val=None, alt_ref=0):
     """
-    Create a minimal JPEG file with GPS EXIF tags for testing.
+    Create a minimal but valid JPEG file with GPS EXIF tags for testing.
     """
-    # Create a blank JPEG
+    # 1) Create a small RGB image and save it as JPEG
     img_path = tmp_path / "test.jpg"
-    with open(img_path, "wb") as f:
-        f.write(b"\xff\xd8\xff\xd9")  # SOI + EOI
+    Image.new("RGB", (10,10), (255,255,255)).save(str(img_path), format="JPEG")
 
-    # Build EXIF
+    # 2) Build the GPS IFD dict
     gps_ifd = {}
-    # Helper to rational
+    # Rational helper
     def rat(x): return (int(x), 1)
 
-    gps_ifd[piexif.GPSIFD.GPSLatitude] = [(lat_vals[0],1),(lat_vals[1],1),(lat_vals[2],1)]
+    gps_ifd[piexif.GPSIFD.GPSLatitude]    = [rat(v) for v in lat_vals]
     gps_ifd[piexif.GPSIFD.GPSLatitudeRef] = lat_ref.encode()
-    gps_ifd[piexif.GPSIFD.GPSLongitude] = [(lon_vals[0],1),(lon_vals[1],1),(lon_vals[2],1)]
-    gps_ifd[piexif.GPSIFD.GPSLongitudeRef] = lon_ref.encode()
+    gps_ifd[piexif.GPSIFD.GPSLongitude]   = [rat(v) for v in lon_vals]
+    gps_ifd[piexif.GPSIFD.GPSLongitudeRef]= lon_ref.encode()
     if alt_val is not None:
-        gps_ifd[piexif.GPSIFD.GPSAltitude] = rat(alt_val)
+        gps_ifd[piexif.GPSIFD.GPSAltitude]    = rat(alt_val)
         gps_ifd[piexif.GPSIFD.GPSAltitudeRef] = alt_ref
 
-    exif = {"GPS": gps_ifd}
-    exif_bytes = piexif.dump(exif)
+    # 3) Dump & insert EXIF back into that file
+    exif_dict = {"GPS": gps_ifd}
+    exif_bytes = piexif.dump(exif_dict)
     piexif.insert(exif_bytes, str(img_path))
-    return str(img_path)
 
+    return str(img_path)
 
 def test_gpsinfo_latlonalt_direction(tmp_path):
     # Create EXIF with known values: 10°20'30" N, 40°50'10" W, alt=100m

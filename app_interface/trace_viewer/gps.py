@@ -1,8 +1,8 @@
 # gps.py
 import piexif
-from typing import Optional, Tuple
+from typing import Optional
 
-def _convert_to_deg(value: Tuple[Tuple[int,int], …]) -> float:
+def _convert_to_deg(value) -> float:
     deg, min_, sec = value
     return deg[0]/deg[1] + (min_[0]/min_[1])/60 + (sec[0]/sec[1])/3600
 
