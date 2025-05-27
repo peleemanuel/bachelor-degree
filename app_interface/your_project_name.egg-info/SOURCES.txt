@@ -1,0 +1,12 @@
+setup.py
+tests/test_gps_and_drones.py
+trace_viewer/__init__.py
+trace_viewer/drones.py
+trace_viewer/gps.py
+trace_viewer/imagery.py
+trace_viewer/overlap.py
+trace_viewer/trace.py
+your_project_name.egg-info/PKG-INFO
+your_project_name.egg-info/SOURCES.txt
+your_project_name.egg-info/dependency_links.txt
+your_project_name.egg-info/top_level.txt
