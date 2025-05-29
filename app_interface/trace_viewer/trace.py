@@ -7,7 +7,7 @@ import folium
 from shapely.geometry import Polygon, MultiPolygon
 
 from .gps import ExifGPS
-from .drones import DroneSpec
+from .drones import DroneSpec, DroneType
 from .imagery_math import calculate_gsd, image_corners, latlon_to_pixel
 
 class TraceCreator:
@@ -21,6 +21,7 @@ class TraceCreator:
         self.trace: List[tuple[float,float]] = []
         self.polygons: List[Polygon] = []
         self.unified: Optional[Polygon] = None
+        self.total_area_percent: float = 0.0
 
     def build(self) -> None:
         self._load_gps_info()
@@ -62,9 +63,9 @@ class TraceCreator:
                 gsd_cm=gsd,
                 img_width=info.img_width(),
                 img_height=info.img_height(),
-                adjust_for_mini4k=(self.drone.type.name == 'MINI_4K')
+                adjust_for_mini4k=(self.drone.type == DroneType.MINI_4K)
             )
-            poly = Polygon(corners)
+            poly = Polygon([(lon, lat) for (lat, lon) in corners])
             self.polygons.append(poly)
 
     def _unify_polygons(self) -> None:
@@ -73,10 +74,11 @@ class TraceCreator:
         u = self.polygons[0]
         for p in self.polygons[1:]:
             u = u.union(p)
+        self.total_area_percent = 100.0
         self.unified = u
 
     def overlaps(self, other: "TraceCreator") -> bool:
-        """Return True if this trace’s unified footprint overlaps the other’s."""
+        """Return True if this traces unified footprint overlaps the others."""
         if self.unified is None or other.unified is None:
             return False
         return self.unified.intersects(other.unified)
@@ -92,9 +94,29 @@ class TraceCreator:
         inter = self.unified.intersection(other.unified)
         perc = inter.area / base_area * 100.0
 
+        self.total_area_percent -= perc / 100.0 * self.total_area_percent
         # remove it
         self.unified = self.unified.difference(other.unified)
+        
+        # remove also from polygons
+        for poly in self.polygons:
+            if poly.intersects(other.unified):
+                poly = poly.difference(other.unified)
+
         return perc
+    
+    def center(self) -> tuple[float, float]:
+        """
+        Return the latitude/longitude to center the map on.
+        """
+        if self.unified is not None and not self.unified.is_empty:
+            c = self.unified.centroid
+            return (c.y, c.x)
+
+        if self.trace:
+            return self.trace[0]
+
+        return (45.9432, 24.9668)
 
     def add_to_map(self, m: folium.Map) -> None:
         # Draw trace

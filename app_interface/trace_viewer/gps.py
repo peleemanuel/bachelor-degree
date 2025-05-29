@@ -1,15 +1,20 @@
 # gps.py
 import piexif
 from typing import Optional
+from PIL import Image
 
 def _convert_to_deg(value) -> float:
     deg, min_, sec = value
     return deg[0]/deg[1] + (min_[0]/min_[1])/60 + (sec[0]/sec[1])/3600
 
-class GPSInfo:
+class ExifGPS:
     def __init__(self, img_path: str):
         self._img_path = img_path
         self._gps = piexif.load(img_path).get("GPS", {})
+
+    def path(self) -> str:
+        """Return the path to the image file."""
+        return self._img_path
 
     def latitude(self) -> Optional[float]:
         lat = self._gps.get(piexif.GPSIFD.GPSLatitude)
@@ -36,3 +41,13 @@ class GPSInfo:
         dir_ = self._gps.get(piexif.GPSIFD.GPSImgDirection)
         if not dir_: return None
         return dir_[0]/dir_[1]
+    
+    def img_width(self) -> int:
+        """Return the pixel width of this image."""
+        with Image.open(self._img_path) as img:
+            return img.width
+
+    def img_height(self) -> int:
+        """Return the pixel height of this image."""
+        with Image.open(self._img_path) as img:
+            return img.height

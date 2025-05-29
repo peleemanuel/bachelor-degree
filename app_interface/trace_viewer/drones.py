@@ -28,6 +28,16 @@ class DroneRegistry:
         except KeyError:
             raise ValueError(f"No spec for drone type {drone_type}")
 
+def get_drone(drone_type: DroneType) -> DroneSpec:
+    """
+    Return the DroneSpec for a given DroneType, 
+    using the centralized DroneRegistry.
+    """
+    try:
+        return DroneRegistry.get(drone_type)
+    except ValueError:
+        raise ValueError(f"Unknown drone type: {drone_type}")
+
 # Register built-ins
 DroneRegistry.register(DroneSpec(DroneType.SELF_MADE, 5.02, 6))
 DroneRegistry.register(DroneSpec(DroneType.GENERIC_DJI, 6.3, 4.5))

@@ -1,7 +1,7 @@
 import pytest
 import piexif
 from trace_viewer.drones import DroneRegistry, DroneSpec, DroneType
-from trace_viewer.gps import GPSInfo
+from trace_viewer.gps import ExifGPS
 from PIL import Image
 
 # Test DroneRegistry functionality
@@ -24,7 +24,7 @@ def test_drone_specs(dtype, sensor, focal):
     assert spec.sensor_width_mm == pytest.approx(sensor)
     assert spec.focal_length_mm == pytest.approx(focal)
 
-# Test GPSInfo EXIF parsing
+# Test ExifGPS EXIF parsing
 def make_test_exif(tmp_path, lat_vals, lat_ref, lon_vals, lon_ref,
                    alt_val=None, alt_ref=0):
     """
@@ -54,10 +54,10 @@ def make_test_exif(tmp_path, lat_vals, lat_ref, lon_vals, lon_ref,
 
     return str(img_path)
 
-def test_gpsinfo_latlonalt_direction(tmp_path):
+def test_ExifGPS_latlonalt_direction(tmp_path):
     # Create EXIF with known values: 10°20'30" N, 40°50'10" W, alt=100m
     img = make_test_exif(tmp_path, lat_vals=(10,20,30), lat_ref='N', lon_vals=(40,50,10), lon_ref='W', alt_val=100, alt_ref=0)
-    info = GPSInfo(img)
+    info = ExifGPS(img)
     lat = info.latitude()
     lon = info.longitude()
     alt = info.altitude()
@@ -81,5 +81,5 @@ def test_missing_tags(tmp_path, tag, attr):
     # Create empty JPEG
     img_path = tmp_path / "no_gps.jpg"
     with open(img_path, "wb") as f: f.write(b"\xff\xd8\xff\xd9")
-    info = GPSInfo(str(img_path))
+    info = ExifGPS(str(img_path))
     assert attr(info) is None

@@ -42,7 +42,7 @@ def image_corners(center_lat: float, center_lon: float,
     """
     half_w = (gsd_cm * img_width / 100)/2
     half_h = (gsd_cm * img_height/100)/2
-    diff = 90 - (20 if adjust_for_mini4k else 0)
+    diff = 90 + (33 if adjust_for_mini4k else 0)
     θ = math.radians(direction_deg - diff)
 
     raw = [(-half_w, half_h), (half_w, half_h),
