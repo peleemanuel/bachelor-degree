@@ -6,82 +6,133 @@ import os
 import cv2
 from picamera2 import Picamera2
 from pymavlink import mavutil
+import argparse
 
-# Event pentru oprirea ordonată a thread‑urilor
+# Event for graceful shutdown of threads
 stop_event = threading.Event()
 
 def mavlink_thread(port, baud, output_file):
     """
-    Deschide conexiunea MAVLink și salvează doar mesajele GPS în output_file.
+    Open a MAVLink connection and write only GPS related messages to a file.
     """
-    # inițializează legătura MAVLink
+    # Initialize the MAVLink connection on the given serial port and baud rate
     master = mavutil.mavlink_connection(port, baud=baud)
     print(f"[MAVLINK] Connected to {port} at {baud} bps")
-    master.wait_heartbeat()
-    print(f"[MAVLINK] Heartbeat received at {time.strftime('%Y-%m-%d %H:%M:%S')} ▶ Starting GPS capture")
+
+    # Wait for a heartbeat from the autopilot, up to 10 seconds
+    hb = master.wait_heartbeat(timeout=10)
+    if hb is None:
+        print("[MAVLINK] No heartbeat in 10s - Stopping MAVLink thread")
+        return
+    print(f"[MAVLINK] Heartbeat received at {time.strftime('%Y-%m-%d %H:%M:%S')} - Starting GPS capture")
     
-    # tipuri de mesaje GPS
+    # Define the MAVLink message types that carry GPS data
     GPS_MESSAGES = ['GPS_RAW_INT', 'HIL_GPS']
+    # Open the output file in write mode
     with open(output_file, 'w') as f:
+        index = 0
+        # Loop until stop_event is set
         while not stop_event.is_set():
+            # Block until a GPS message of the specified types arrives
             msg = master.recv_match(type=GPS_MESSAGES, blocking=True)
             if msg:
+                # Convert the message to a dictionary for easy formatting
                 d = msg.to_dict()
-                line = f"[{msg.get_type()}] {d}\n"
-                #print(line, end='')
+                # Format the line with an index, message type, and full dictionary
+                line = f"[{index}] [{msg.get_type()}] {d}\n"
                 f.write(line)
+                # Print a simple log entry with a timestamp and index
+                timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+                print(f"[MAVLINK] Wrote {timestamp} - {index}")
                 f.flush()
+                index += 1
 
 def camera_thread(output_folder, interval, count):
     """
-    Configurează Picamera2 și salvează count imagini cu intervalul dat.
+    Configure Picamera2 and capture a fixed number of images at a set interval.
     """
+    # Create Picamera2 instance (the newer official Raspberry Pi Python API)
     picam2 = Picamera2()
+    # Ensure the output directory exists (no error if it already exists)
     os.makedirs(output_folder, exist_ok=True)
 
-    # configurare still capture la 1280×720
+    # Configure the camera for still captures at 1280×720 resolution
     config = picam2.create_still_configuration(main={"size": (1280, 720)})
     picam2.configure(config)
     picam2.start()
-    # expunere rapidă și câștig analog
+    # Set fast exposure and a base analog gain for consistent image brightness
     picam2.set_controls({'ExposureTime': 5000, 'AnalogueGain': 1.0})
     print("[CAMERA] Started - capturing images...")
 
     for i in range(count):
+        # Exit early if the stop_event was set from the main thread
         if stop_event.is_set():
             break
+
+        # Capture image data from Picamera2 as a NumPy array
         image = picam2.capture_array("main")
+        # Generate a timestamp string for naming the image file
         ts = time.strftime("%Y%m%d_%H%M%S")
         filename = f"{output_folder}/capture_{ts}.jpg"
+        # Write the image to disk in JPEG format
         cv2.imwrite(filename, image)
         print(f"[CAMERA] Captured {filename} at {time.strftime('%Y-%m-%d %H:%M:%S')}")
-        time.sleep(interval)
+        
+        # Sleep half the interval before and after a hypothetical LED blink
+        # (the LED on/off commands are commented out below)
+        time.sleep(interval / 2)
+        # Turn LED on (commented out; uncomment if you have a status LED wired)
+        # os.system("sudo bash -c 'echo 1 > /sys/class/leds/led0/brightness'")
+        time.sleep(interval / 2)
+        # Turn LED off
+        # os.system("sudo bash -c 'echo 0 > /sys/class/leds/led0/brightness'")
 
+    # Stop the camera when complete or when interrupted
     picam2.stop()
     print("[CAMERA] Stopped")
 
 if __name__ == "__main__":
-    # parametrizare
+    # Parse command‐line arguments
+    parser = argparse.ArgumentParser(description="Capture photos and GPS data.")
+    parser.add_argument(
+        "--cam_folder",
+        type=str,
+        required=True,
+        help="Folder to save captured images."
+    )
+    args = parser.parse_args()
+
+    # Define the serial port and baud rate for MAVLink (UART on Raspberry Pi)
     port = "/dev/ttyAMA0"
     baud = 115200
-    gps_file = "captureinfo.txt"
-    cam_folder = "captures"
-    interval_s = 1       # secunde între capturi
-    n_images = 360       # număr de capturi
+    # Set the camera output folder from command‐line argument
+    cam_folder = args.cam_folder
+    # Construct the GPS log filename inside the same folder
+    gps_file = cam_folder + "/capture_gps_info.txt"
 
-    # pornire thread‑uri
-    t1 = threading.Thread(target=mavlink_thread, args=(port, baud, gps_file))
-    t2 = threading.Thread(target=camera_thread, args=(cam_folder, interval_s, n_images))
+    # Determine how often to capture and how many images to take
+    interval_s = 1        # seconds between captures
+    n_images = 60         # total number of captures
+
+    # Start the MAVLink and Camera threads
+    t1 = threading.Thread(
+        target=mavlink_thread,
+        args=(port, baud, gps_file)
+    )
+    t2 = threading.Thread(
+        target=camera_thread,
+        args=(cam_folder, interval_s, n_images)
+    )
     t1.start()
     t2.start()
 
     try:
-        # așteaptă terminarea thread‑ului camerei
+        # Wait for the camera thread to finish (or until user interrupts)
         t2.join()
     except KeyboardInterrupt:
         print("\n[MAIN] Interrupted by user")
     finally:
-        # semnalează thread‑ului MAVLink să se oprească și așteaptă‑l
+        # Signal the MAVLink thread to stop and wait for it to exit
         stop_event.set()
         t1.join()
         print("[MAIN] All threads stopped. Exiting.")
