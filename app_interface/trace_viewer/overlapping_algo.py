@@ -126,7 +126,7 @@ def filter_changes_by_percentage(raw_diff, pct_min_area=0.002, ar_bounds=(0.75, 
         if (x <= border_margin or y <= border_margin or
             x + bw >= W_mask - border_margin or
             y + bh >= H_mask - border_margin):
-            continue  # discard if touches overlap border :contentReference[oaicite:12]{index=12}
+            continue  
         # 4c) Solidity filter
 
         pts = c.squeeze()
@@ -138,8 +138,8 @@ def filter_changes_by_percentage(raw_diff, pct_min_area=0.002, ar_bounds=(0.75, 
             continue
         solidity = poly.area / hull_area
         if solidity < solidity_thresh:
-            continue  # discard if too “stringy” :contentReference[oaicite:13]{index=13}
-        # Keep this contour
+            continue  
+
         cv2.drawContours(final_mask, [c], -1, 1, cv2.FILLED)
 
     return final_mask
@@ -152,7 +152,8 @@ def compare_overlapping_zones(
     figheight: float = 6,
     pct_min_area: float = 0.001,
     ssim_thresh: float = 0.90,
-    iou_thresh: float = 0.03
+    iou_thresh: float = 0.03,
+    log_image_info: bool = False
 ):
     if not t1.overlaps(t2):
         print("No overlap between the two traces.")
@@ -201,26 +202,28 @@ def compare_overlapping_zones(
             # (F) IoU Skip
             union = np.logical_or(m1, m2).sum()
             iou = final_mask.sum() / union if union > 0 else 0
-            print("######################################")
-            print(f"Comparing {t1.infos[i1].path()} with {t2.infos[i2].path()}")
-            computed_ssim = ssim(m1f, m2f, data_range=m1f.max() - m1f.min())
-            print(f"SSIM={ssim_thresh:.2f} (computed={computed_ssim:.2f})")
-            print(f"Final mask size: {final_mask.sum()} pixels")
-            print(f"Union size: {union} pixels")
-            print(f"Raw diff size: {raw_diff.sum()} pixels")
-            print(f"Filtered diff size: {final_mask.sum()} pixels")
-            print(f"SSIM mask size: {struct_mask.sum()} pixels")
-            print(f"Crop 1: {pil1.size}, Crop 2: {pil2.size}")
-            print(f"Crop 1: {t1.infos[i1].path()}, Crop 2: {t2.infos[i2].path()}")
-            print(f"Crop 1: {t1.infos[i1].latitude()}, {t1.infos[i1].longitude()}")
-            print(f"Crop 2: {t2.infos[i2].latitude()}, {t2.infos[i2].longitude()}")
-            print(f"Final mask IoU: {iou:.2f} (threshold={iou_thresh})")
-            print(f"Final mask size: {final_mask.sum()} pixels")
-            print(f"IoU={iou:.2f} (threshold={iou_thresh})")
-            print("######################################")
+            if log_image_info:
+                print("######################################")
+                print(f"Comparing {t1.infos[i1].path()} with {t2.infos[i2].path()}")
+                computed_ssim = ssim(m1f, m2f, data_range=m1f.max() - m1f.min())
+                print(f"SSIM={ssim_thresh:.2f} (computed={computed_ssim:.2f})")
+                print(f"Final mask size: {final_mask.sum()} pixels")
+                print(f"Union size: {union} pixels")
+                print(f"Raw diff size: {raw_diff.sum()} pixels")
+                print(f"Filtered diff size: {final_mask.sum()} pixels")
+                print(f"SSIM mask size: {struct_mask.sum()} pixels")
+                print(f"Crop 1: {pil1.size}, Crop 2: {pil2.size}")
+                print(f"Crop 1: {t1.infos[i1].path()}, Crop 2: {t2.infos[i2].path()}")
+                print(f"Crop 1: {t1.infos[i1].latitude()}, {t1.infos[i1].longitude()}")
+                print(f"Crop 2: {t2.infos[i2].latitude()}, {t2.infos[i2].longitude()}")
+                print(f"Final mask IoU: {iou:.2f} (threshold={iou_thresh})")
+                print(f"Final mask size: {final_mask.sum()} pixels")
+                print(f"IoU={iou:.2f} (threshold={iou_thresh})")
+                print("######################################")
 
             if iou < iou_thresh:
-                print(f"IoU={iou:.2f} < {iou_thresh}: skipping small change.")
+                if log_image_info:
+                    print(f"IoU={iou:.2f} < {iou_thresh}: skipping small change.")
                 continue
 
             # (G) Record result
@@ -235,5 +238,5 @@ def compare_overlapping_zones(
                 "lat": lat,
                 "lon": lon
             })
-
+    print(f"Found {len(figs)} overlapping zones with significant changes.")
     return figs

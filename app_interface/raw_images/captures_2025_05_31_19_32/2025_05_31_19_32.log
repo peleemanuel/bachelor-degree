@@ -1,6 +1,6 @@
 [MAVLINK] Connected to /dev/ttyAMA0 at 115200 bps
 [CAMERA] Started - capturing images...
-[MAVLINK] Heartbeat received at 2025-05-31 19:32:57 ▶ Starting GPS capture
+[MAVLINK] Heartbeat received at 2025-05-31 19:32:57- Starting GPS capture
 [CAMERA] Captured captures_2025_05_31_19_32/capture_20250531_193257.jpg at 2025-05-31 19:32:57
 [MAVLINK] Wrote 2025-05-31 19:32:57 - 0
 [MAVLINK] Wrote 2025-05-31 19:32:58 - 1

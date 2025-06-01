@@ -69,7 +69,9 @@ if st.sidebar.button("➕ Add Flight") and new_folder:
         # 2) Clip overlaps against all existing traces
         removed_from = []
         for path, tc_old in list(st.session_state.traces.items()):
-
+            if not tc_old.overlaps(tc_new):
+                continue
+            
             new_cases = compare_overlapping_zones(tc_old, tc_new)
             for case in new_cases:
                 st.session_state.cases.append(case)

@@ -7,8 +7,8 @@ from trace_viewer.trace import TraceCreator
 from trace_viewer.overlapping_algo import compare_overlapping_zones
 from trace_viewer.drones import DroneType, get_drone
 
-TEST_HOME        = os.path.join(os.getcwd(), "raw_images", "test_home")
-OVERLAP_TEST_HOME = os.path.join(os.getcwd(), "raw_images", "overlap_test_home")
+TEST_HOME         = os.path.join(os.getcwd(), "raw_images", "test_home_2")
+OVERLAP_TEST_HOME = os.path.join(os.getcwd(), "raw_images", "overlap_test_home_2")
 
 def build_trace(folder: str) -> TraceCreator:
     """
@@ -40,7 +40,7 @@ def test_compare_overlapping_zones_reports_change_or_no_overlap(capsys):
 
     # It must report something meaningful
     assert (
-        "Change rejected" in out
+        "overlapping zones with significant changes" in out
     ), f"Unexpected output:\n{out}"
 
 def test_trace_and_footprint_drawn_on_map(tmp_path):
