@@ -24,18 +24,16 @@ jobs:
           python-version: '3.11'
           cache: 'pip'
 
-      # Change to app_interface directory
-      - name: Change directory to app_interface
-        run: cd app_interface
-
       # Install dependencies from requirements.txt
       - name: Install dependencies
+        working-directory: app_interface
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
       # Run pytest
       - name: Run pytest
+        working-directory: app_interface
         run: |
           pytest -v --maxfail=1 --disable-warnings
 
@@ -54,12 +52,9 @@ jobs:
           python-version: '3.11'
           cache: 'pip'
 
-      # Change to app_interface directory
-      - name: Change directory to app_interface
-        run: cd app_interface
-
       # Install dependencies (including pylint)
       - name: Install dependencies + pylint
+        working-directory: app_interface
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
@@ -67,12 +62,14 @@ jobs:
 
       # Run pylint on the entire package
       - name: Run pylint
+        working-directory: app_interface
         run: |
           # Run pylint against the 'app_interface' package
           pylint app_interface --rcfile=.pylintrc || true
 
       # Save Pylint score as an output
       - name: Extract Pylint score
+        working-directory: app_interface
         id: pylint-score
         run: |
           SCORE=$(pylint app_interface --rcfile=.pylintrc | grep "Your code has been rated at" || echo "")
