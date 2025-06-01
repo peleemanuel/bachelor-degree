@@ -3,25 +3,59 @@
 import os
 import sys
 import argparse
-import ast
 
 from PIL import Image, ImageDraw, ImageFont
 from GPS_raw_entry import parse_capture_file, GPSRawInt
 from elevation import process_coordinates
 
+# Import the new helper
+import piexif
+import math
+
+def inject_gps_exif(img_path: str, lat: float, lon: float, alt_m: float = None):
+    """
+    Embed GPSLatitude, GPSLongitude, and optionally GPSAltitude into the JPEG at `img_path`.
+    Preserves other EXIF fields.
+    """
+    exif_dict = piexif.load(img_path)                   # Load existing EXIF
+    gps_ifd = exif_dict.get("GPS", {})                   # Get or create GPS IFD
+
+    def dec_to_dms_rational(val: float):
+        deg = int(math.floor(abs(val)))
+        rem = (abs(val) - deg) * 60
+        minutes = int(math.floor(rem))
+        seconds = (rem - minutes) * 60
+        return ((deg, 1), (minutes, 1), (int(seconds * 100), 100))
+
+    # Latitude & Ref
+    lat_ref = b'N' if lat >= 0 else b'S'
+    gps_ifd[piexif.GPSIFD.GPSLatitudeRef] = lat_ref
+    gps_ifd[piexif.GPSIFD.GPSLatitude] = dec_to_dms_rational(lat)
+
+    # Longitude & Ref
+    lon_ref = b'E' if lon >= 0 else b'W'
+    gps_ifd[piexif.GPSIFD.GPSLongitudeRef] = lon_ref
+    gps_ifd[piexif.GPSIFD.GPSLongitude] = dec_to_dms_rational(lon)
+
+    # Altitude (if provided)
+    if alt_m is not None:
+        gps_ifd[piexif.GPSIFD.GPSAltitudeRef] = 0
+        gps_ifd[piexif.GPSIFD.GPSAltitude] = (int(alt_m * 100), 100)
+
+    exif_dict["GPS"] = gps_ifd                             # Update EXIF dict
+    exif_bytes = piexif.dump(exif_dict)                    # Dump to bytes
+    piexif.insert(exif_bytes, img_path)                     # Insert back into JPEG
+
 def get_corrected_gps_objects(folder_path: str):
     """
-    1) Parse 'capture_gps_info.txt' into GPSRawInt objects.
-    2) Extract coordinates and fetch ground elevations.
-    3) Compute altitude_agl_m = altitude_m - ground_elevation for each object.
-    Returns the list of GPSRawInt objects with new attribute 'altitude_agl_m'.
+    Parse 'capture_gps_info.txt' → GPSRawInt list, fetch ground elevations,
+    and compute altitude_agl_m for each object.
     """
     gps_objects = parse_capture_file(folder_path)
     if not gps_objects:
         print(f"[ERROR] No GPS entries found in '{os.path.join(folder_path, 'capture_gps_info.txt')}'.")
         return []
 
-    # Build list of (lat, lon) in decimal degrees
     coordinates = [(obj.latitude_deg, obj.longitude_deg) for obj in gps_objects]
 
     try:
@@ -34,7 +68,6 @@ def get_corrected_gps_objects(folder_path: str):
         print("[ERROR] Mismatch between GPS entries and returned elevations.")
         return []
 
-    # Compute AGL altitude and attach as attribute
     for obj, gr in zip(gps_objects, ground_elevations):
         obj.altitude_agl_m = obj.altitude_m - gr
 
@@ -42,13 +75,7 @@ def get_corrected_gps_objects(folder_path: str):
 
 def parse_log_for_image_indices(log_path: str):
     """
-    Reads the .log file at log_path and returns a dict mapping:
-        { image_filename: gps_index (int) }.
-
-    Algorithm (single-pass):
-      - When a "[CAMERA] Captured .../<filename>" line appears, store filename as 'pending_image'.
-      - When the next "[MAVLINK] Wrote ... - {idx}" line appears (and pending_image is not None),
-        assign that idx to pending_image in the mapping, then clear pending_image.
+    Reads the .log file and returns { image_filename: gps_index }.
     """
     mapping = {}
     pending_image = None
@@ -80,12 +107,10 @@ def parse_log_for_image_indices(log_path: str):
 
 def annotate_images(folder_path: str, gps_objects: list):
     """
-    Given the folder with images and the list of GPSRawInt objects (indexed by their capture order),
-    parse the .log file to map each image to a GPS index, then open each JPEG,
-    overlay 'lat, lon, alt_agl' onto the top-left corner, and save into 'annotated/'.
+    For each image in the folder, overlay 'lat, lon, alt_agl' text,
+    save to 'annotated/', then inject GPS EXIF tags.
     """
 
-    # Extract the date from the folder name (assuming format 'captures_{date}')
     folder_name = os.path.basename(folder_path)
     if folder_name.startswith("captures_"):
         date = folder_name.split("_", 1)[1]
@@ -136,12 +161,21 @@ def annotate_images(folder_path: str, gps_objects: list):
 
         for dx, dy in [(-1,0), (1,0), (0,-1), (0,1)]:
             draw.text((x+dx, y+dy), text, font=font, fill=outline_color)
-
         draw.text((x, y), text, font=font, fill=fill_color)
 
         out_path = os.path.join(out_dir, img_name)
         img.convert("RGB").save(out_path, "JPEG")
-        print(f"[OK] Annotated '{img_name}' with index {idx} → saved to '{out_path}'.")
+        print(f"[OK] Annotated '{img_name}' → saved to '{out_path}'.")
+
+        # --- NEW: Inject GPS EXIF so ExifGPS can read it later ---
+        inject_gps_exif(
+            out_path,
+            lat=gps_obj.latitude_deg,
+            lon=gps_obj.longitude_deg,
+            alt_m=gps_obj.altitude_m    # or use gps_obj.altitude_agl_m if desired
+        )
+        print(f"[OK] Injected GPS EXIF into '{out_path}'.")
+        # ---------------------------------------------------------
 
 def main():
     parser = argparse.ArgumentParser(
