@@ -4,7 +4,7 @@ import numpy as np
 import cv2
 
 from gps_info import GPSInfo, DroneType, SelfMadeDrone, DJI, DJIMini4K, DroneInteface
-from image import get_drone, GSD_calculator, get_image_corner_coordinates, latlon_to_pixel
+from app_interface.image import get_drone, GSD_calculator, get_image_corner_coordinates, latlon_to_pixel
 import folium
 import math
 from shapely.geometry import Polygon, MultiPolygon, box
