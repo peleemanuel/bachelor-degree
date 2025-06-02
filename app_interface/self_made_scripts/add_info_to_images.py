@@ -48,7 +48,7 @@ def inject_gps_exif(img_path: str, lat: float, lon: float, alt_m: float = None):
 
 def get_corrected_gps_objects(folder_path: str):
     """
-    Parse 'capture_gps_info.txt' → GPSRawInt list, fetch ground elevations,
+    Parse 'capture_gps_info.txt' -> GPSRawInt list, fetch ground elevations,
     and compute altitude_agl_m for each object.
     """
     gps_objects = parse_capture_file(folder_path)
@@ -66,6 +66,7 @@ def get_corrected_gps_objects(folder_path: str):
 
     if len(ground_elevations) != len(gps_objects):
         print("[ERROR] Mismatch between GPS entries and returned elevations.")
+        sys.exit(1)
         return []
 
     for obj, gr in zip(gps_objects, ground_elevations):
@@ -124,7 +125,7 @@ def annotate_images(folder_path: str, gps_objects: list):
 
     image_to_index = parse_log_for_image_indices(log_path)
     if not image_to_index:
-        print(f"[WARNING] No image–index mappings found in log '{log_path}'.")
+        print(f"[WARNING] No image-index mappings found in log '{log_path}'.")
         return
 
     out_dir = os.path.join(folder_path, "annotated")
@@ -165,14 +166,14 @@ def annotate_images(folder_path: str, gps_objects: list):
 
         out_path = os.path.join(out_dir, img_name)
         img.convert("RGB").save(out_path, "JPEG")
-        print(f"[OK] Annotated '{img_name}' → saved to '{out_path}'.")
+        print(f"[OK] Annotated '{img_name}' -> saved to '{out_path}'.")
 
         # --- NEW: Inject GPS EXIF so ExifGPS can read it later ---
         inject_gps_exif(
             out_path,
             lat=gps_obj.latitude_deg,
             lon=gps_obj.longitude_deg,
-            alt_m=gps_obj.altitude_m    # or use gps_obj.altitude_agl_m if desired
+            alt_m=gps_obj.altitude_agl_m
         )
         print(f"[OK] Injected GPS EXIF into '{out_path}'.")
         # ---------------------------------------------------------
