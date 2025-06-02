@@ -3,12 +3,6 @@ import ast
 
 class GPSRawInt:
     def __init__(self, data: dict):
-        """
-        Initialize from a dictionary produced by msg.to_dict() on a GPS_RAW_INT message.
-        
-        Args:
-            data (dict): Dictionary containing all GPS_RAW_INT fields.
-        """
         # Store raw values
         self.time_usec = data.get("time_usec", 0)
         self.fix_type = data.get("fix_type", 0)
@@ -29,88 +23,37 @@ class GPSRawInt:
 
     @property
     def latitude_deg(self) -> float:
-        """
-        Convert raw latitude (1E-7 degrees) to decimal degrees.
-        
-        Returns:
-            float: Latitude in degrees (e.g., 46.2865373).
-        """
         return self.lat / 1e7
 
     @property
     def longitude_deg(self) -> float:
-        """
-        Convert raw longitude (1E-7 degrees) to decimal degrees.
-        
-        Returns:
-            float: Longitude in degrees (e.g., 21.3863903).
-        """
         return self.lon / 1e7
 
     @property
     def altitude_m(self) -> float:
-        """
-        Convert raw altitude (millimeters) to meters.
-        
-        Returns:
-            float: Altitude in meters (e.g., 128.7).
-        """
         return self.alt / 1000.0
 
     @property
     def horizontal_accuracy_m(self) -> float:
-        """
-        Convert horizontal accuracy (millimeters) to meters.
-        
-        Returns:
-            float: Horizontal accuracy in meters.
-        """
         return self.h_acc / 1000.0
 
     @property
     def vertical_accuracy_m(self) -> float:
-        """
-        Convert vertical accuracy (millimeters) to meters.
-        
-        Returns:
-            float: Vertical accuracy in meters.
-        """
         return self.v_acc / 1000.0
 
     @property
     def speed_m_s(self) -> float:
-        """
-        Convert ground speed (cm/s) to m/s.
-        
-        Returns:
-            float: Speed in meters per second.
-        """
         return self.vel / 100.0
 
     @property
     def course_deg(self) -> float:
-        """
-        Convert course over ground (cdeg) to degrees.
-        
-        Returns:
-            float: Course over ground in degrees.
-        """
         return self.cog / 100.0
 
     @property
     def time_s(self) -> float:
-        """
-        Convert time_usec (microseconds) to seconds.
-        
-        Returns:
-            float: Time since boot (or GPS epoch) in seconds.
-        """
         return self.time_usec / 1e6
 
     def __repr__(self):
-        """
-        Return a concise string representation with key fields.
-        """
         return (
             f"GPSRawInt(time={self.time_s:.2f}s, fix={self.fix_type}, "
             f"lat={self.latitude_deg:.7f}°, lon={self.longitude_deg:.7f}°, "
@@ -118,16 +61,6 @@ class GPSRawInt:
         )
     
 def parse_capture_file(folder_path: str):
-    """
-    Given a folder path, locate 'capture_gps_info.txt', parse each line,
-    and return a list of GPSRawInt objects.
-
-    Args:
-        folder_path (str): Path to the folder containing 'capture_gps_info.txt'.
-
-    Returns:
-        List[GPSRawInt]: List of instantiated GPSRawInt objects.
-    """
     gps_objects = []
 
     # Construct full path to capture_gps_info.txt

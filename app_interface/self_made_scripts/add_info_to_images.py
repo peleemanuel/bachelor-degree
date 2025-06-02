@@ -17,8 +17,8 @@ def inject_gps_exif(img_path: str, lat: float, lon: float, alt_m: float = None):
     Embed GPSLatitude, GPSLongitude, and optionally GPSAltitude into the JPEG at `img_path`.
     Preserves other EXIF fields.
     """
-    exif_dict = piexif.load(img_path)                   # Load existing EXIF
-    gps_ifd = exif_dict.get("GPS", {})                   # Get or create GPS IFD
+    exif_dict = piexif.load(img_path)
+    gps_ifd = exif_dict.get("GPS", {})
 
     def dec_to_dms_rational(val: float):
         deg = int(math.floor(abs(val)))
@@ -42,9 +42,9 @@ def inject_gps_exif(img_path: str, lat: float, lon: float, alt_m: float = None):
         gps_ifd[piexif.GPSIFD.GPSAltitudeRef] = 0
         gps_ifd[piexif.GPSIFD.GPSAltitude] = (int(alt_m * 100), 100)
 
-    exif_dict["GPS"] = gps_ifd                             # Update EXIF dict
-    exif_bytes = piexif.dump(exif_dict)                    # Dump to bytes
-    piexif.insert(exif_bytes, img_path)                     # Insert back into JPEG
+    exif_dict["GPS"] = gps_ifd
+    exif_bytes = piexif.dump(exif_dict)
+    piexif.insert(exif_bytes, img_path)
 
 def get_corrected_gps_objects(folder_path: str):
     """
@@ -168,7 +168,6 @@ def annotate_images(folder_path: str, gps_objects: list):
         img.convert("RGB").save(out_path, "JPEG")
         print(f"[OK] Annotated '{img_name}' -> saved to '{out_path}'.")
 
-        # --- NEW: Inject GPS EXIF so ExifGPS can read it later ---
         inject_gps_exif(
             out_path,
             lat=gps_obj.latitude_deg,
@@ -176,7 +175,6 @@ def annotate_images(folder_path: str, gps_objects: list):
             alt_m=gps_obj.altitude_agl_m
         )
         print(f"[OK] Injected GPS EXIF into '{out_path}'.")
-        # ---------------------------------------------------------
 
 def main():
     parser = argparse.ArgumentParser(

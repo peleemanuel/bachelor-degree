@@ -70,15 +70,6 @@ def pad_to_common_size(im1: Image.Image, im2: Image.Image) -> tuple:
 
 
 def extract_overlap(img_path1: str, img_path2: str, out1: str = 'overlap1.png', out2: str = 'overlap2.png') -> None:
-    """
-    High-level function to extract overlapping zone between two images:
-    1) Load images
-    2) Detect & match keypoints
-    3) Compute homography
-    4) Compute overlap polygon
-    5) Crop both images to polygon
-    6) Pad to common size and save
-    """
     img1 = cv2.imread(img_path1)
     img2 = cv2.imread(img_path2)
 
