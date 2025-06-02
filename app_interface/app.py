@@ -31,7 +31,7 @@ if "visible_cases" not in st.session_state:
 # --- Sidebar: Drone Configuration ---
 st.sidebar.header("Drone Configuration")
 spec_names = list(DroneRegistry._specs.keys())
-choice     = st.sidebar.selectbox("Select Drone Type", spec_names)
+choice = st.sidebar.selectbox("Select Drone Type", spec_names)
 spec = DroneRegistry.get(choice)
 st.sidebar.markdown(
     f"**Spec:**\n"
@@ -39,12 +39,10 @@ st.sidebar.markdown(
     f"- Focal length (mm): {spec.focal_length_mm}"
 )
 
-
-# allow registering a brand-new spec
-st.sidebar.subheader("➕ Add New Drone Spec")
-new_name   = st.sidebar.text_input("Name (unique)")
-new_sens   = st.sidebar.number_input("Sensor width (mm)",   value=spec.sensor_width_mm)
-new_focal  = st.sidebar.number_input("Focal length (mm)",   value=spec.focal_length_mm)
+st.sidebar.subheader(":heavy_plus_sign: Add New Drone Spec")
+new_name = st.sidebar.text_input("Name (unique)")
+new_sens = st.sidebar.number_input("Sensor width (mm)", value=spec.sensor_width_mm)
+new_focal  = st.sidebar.number_input("Focal length (mm)", value=spec.focal_length_mm)
 if st.sidebar.button("Register Drone"):
     if not new_name:
         st.sidebar.error("Please give it a non-empty name.")
@@ -53,20 +51,18 @@ if st.sidebar.button("Register Drone"):
     else:
         DroneRegistry.register(DroneSpec(new_name, new_sens, new_focal))
         st.sidebar.success(f"Registered '{new_name}'")
-        # update the select‐list
         spec_names.append(new_name)
 
-# --- Sidebar: Add New Flight ---
 st.sidebar.header("Load New Flight")
 new_folder = st.sidebar.text_input("Image Folder Path")
 
-if st.sidebar.button("➕ Add Flight") and new_folder:
+if st.sidebar.button(":heavy_plus_sign: Add Flight") and new_folder:
     try:
-        # 1) Build the new trace
+        # Build the new trace
         tc_new = TraceCreator(new_folder, spec)
         tc_new.build()
 
-        # 2) Clip overlaps against all existing traces
+        # Clip overlaps against all existing traces
         removed_from = []
         for path, tc_old in list(st.session_state.traces.items()):
             if not tc_old.overlaps(tc_new):
@@ -85,31 +81,29 @@ if st.sidebar.button("➕ Add Flight") and new_folder:
                     st.sidebar.info(f"Removing '{path}' (only {tc_old.total_area_percent:.1f}% left)")
                     st.session_state.traces.pop(path)
 
-        # 3) Finally store the new trace
+        # Finally store the new trace
         st.session_state.traces[new_folder] = tc_new
 
-        # 4) Feedback to user
+        # Feedback to user
         st.success(f"Loaded '{new_folder}'")
         if removed_from:
-            msgs = [f"– clipped {p:.1f}% from {fld!r}" for fld, p in removed_from]
+            msgs = [f"- clipped {p:.1f}% from {fld!r}" for fld, p in removed_from]
             st.warning("Overlap adjustments:\n" + "\n".join(msgs))
 
     except Exception as e:
         st.error(f"Failed to load '{new_folder}': {e}")
 
-# --- Sidebar: Manage Loaded Flights ---
 st.sidebar.header("Manage Flights")
 to_delete = st.sidebar.multiselect(
     "Select flights to remove",
     options=list(st.session_state.traces.keys())
 )
-if st.sidebar.button("🗑️ Delete Selected"):
+if st.sidebar.button(":wastebasket: Delete Selected"):
     for f in to_delete:
         st.session_state.traces.pop(f, None)
     st.sidebar.success(f"Removed {len(to_delete)} flight(s).")
 
-# --- Main Map Display ---
-st.title("📍 Flight Trace Map")
+st.title(":round_pushpin: Flight Trace Map")
 
 # Determine center: first trace or Romania
 if st.session_state.traces:
@@ -129,6 +123,7 @@ for folder, tc in st.session_state.traces.items():
     ).add_to(m)
 
 folium_static(m)
+
 # We will collect the indices that should be hidden/removed this run
 to_remove = []
 
@@ -142,19 +137,19 @@ for idx, case in enumerate(st.session_state.cases):
     with container:
         st.markdown(f"### Overlap candidate #{idx+1}")
 
-        # 1) Display geolocation (lat/lon)
+        # Display geolocation (lat/lon)
         lat = case["lat"]
         lon = case["lon"]
         st.write(f"**Location:**  lat = {lat:.6f},  lon = {lon:.6f}")
 
-        # 2) “Get Directions” link (opens Google Maps in new tab)
+        # “Get Directions” link (opens Google Maps in new tab)
         maps_url = f"https://www.google.com/maps/dir/?api=1&destination={lat:.6f},{lon:.6f}"
         st.markdown(
-            f"[➡️ Get Directions in Google Maps](<{maps_url}>)",
+            f"[:arrow_right: Get Directions in Google Maps](<{maps_url}>)",
             unsafe_allow_html=True,
         )
 
-        # 3) Show images + masks side by side
+        # Show images + masks side by side
         cols = st.columns(3)
         with cols[0]:
             st.image(case["crop1"], caption="Overlap Crop 1")
@@ -168,9 +163,9 @@ for idx, case in enumerate(st.session_state.cases):
             st.write("Filtered Difference")
             st.pyplot(_plot_gray(case["diff"]))
 
-        # 4) Render a Delete button for just this card:
+        # Render a Delete button for just this card:
         btn_key = f"delete_case_{idx}"
-        if st.button("🗑️ Delete this overlap", key=btn_key):
+        if st.button(":wastebasket: Delete this overlap", key=btn_key):
             # Hide only this container and mark it for removal
             container.empty()
             st.session_state.visible_cases[idx] = False

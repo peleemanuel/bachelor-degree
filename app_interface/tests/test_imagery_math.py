@@ -26,7 +26,7 @@ def test_latlon_to_pixel_center():
     assert py == pytest.approx(150.0)
 
 def test_latlon_to_pixel_offset():
-    # 1 meter east → 10 px to the right (with gsd=10cm/pix)
+    # 1 meter east 10 px to the right (with gsd=10cm/pix)
     offset_deg = 1 / METERS_PER_DEGREE
     px, py = latlon_to_pixel(
         lat=0.0, lon=offset_deg,

@@ -10,13 +10,13 @@ def test_builtin_registry():
     assert keys == expected
 
 @pytest.mark.parametrize("dtype,sw,fl", [
-    (DroneType.SELF_MADE,    5.02,          6.0),
-    (DroneType.GENERIC_DJI,  6.3,           4.5),
-    (DroneType.MINI_4K,      pytest.approx(6.3/4), 4.5),
+    (DroneType.SELF_MADE, 5.02, 6.0),
+    (DroneType.GENERIC_DJI, 6.3, 4.5),
+    (DroneType.MINI_4K, pytest.approx(6.3/4), 4.5),
 ])
 def test_drone_spec_values(dtype, sw, fl):
     spec = DroneRegistry.get(dtype)
     assert isinstance(spec, DroneSpec)
     assert spec.type == dtype
-    assert spec.sensor_width_mm   == pytest.approx(sw)
-    assert spec.focal_length_mm   == pytest.approx(fl)
+    assert spec.sensor_width_mm == pytest.approx(sw)
+    assert spec.focal_length_mm == pytest.approx(fl)
