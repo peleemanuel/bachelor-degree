@@ -1,6 +1,6 @@
 # .github/workflows/ci.yml
 
-name: CI (Pytest + Pylint)
+name: CI (Pytest)
 
 on:
   push:
