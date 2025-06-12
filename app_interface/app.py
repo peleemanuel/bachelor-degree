@@ -68,7 +68,7 @@ if st.sidebar.button(":heavy_plus_sign: Add Flight") and new_folder:
             if not tc_old.overlaps(tc_new):
                 continue
             
-            new_cases = compare_overlapping_zones(tc_old, tc_new)
+            new_cases = compare_overlapping_zones(tc_old, tc_new, log_image_info=True)
             for case in new_cases:
                 st.session_state.cases.append(case)
                 st.session_state.visible_cases.append(True)

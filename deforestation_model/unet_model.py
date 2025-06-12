@@ -50,23 +50,19 @@ def convBlock2(input, filters, kernel, kernel_init='he_normal', act='relu', tran
   Attention block/mechanism
 '''
 def attention_block(x, gating, inter_shape, drop_rate=0.25):
-    """
-    x:      Tensor(shape=(batch, H, W, Cx))
-    gating: Tensor(shape=(batch, h, w, Cg))
-    inter_shape: number of filters for the attention intermediate convs
-    """
+
     # 1x1 conv + downsample x
     theta_x = Conv2D(inter_shape, kernel_size=1, padding='same')(x)
-    theta_x = MaxPooling2D(pool_size=(2,2))(theta_x)               # -> (batch, H/2, W/2, inter_shape)
+    theta_x = MaxPooling2D(pool_size=(2,2))(theta_x)
 
     # 1x1 conv on gating signal
-    phi_g = Conv2D(inter_shape, kernel_size=1, padding='same')(gating)  # -> (batch, H/2, W/2, inter_shape)
+    phi_g = Conv2D(inter_shape, kernel_size=1, padding='same')(gating)
 
     # combine and run through activation + conv
     add_xg = add([phi_g, theta_x])
     act_xg = Activation('relu')(add_xg)
-    psi    = Conv2D(1, kernel_size=1, padding='same')(act_xg)       # -> (batch, H/2, W/2, 1)
-    sigmoid_xg = Activation('sigmoid')(psi)                         # same shape
+    psi    = Conv2D(1, kernel_size=1, padding='same')(act_xg)       
+    sigmoid_xg = Activation('sigmoid')(psi)
 
     # upsample mask back to x’s spatial dims
     shape_x = K.int_shape(x)
@@ -76,10 +72,10 @@ def attention_block(x, gating, inter_shape, drop_rate=0.25):
             shape_x[2] // K.int_shape(sigmoid_xg)[2]
         ),
         interpolation='bilinear'
-    )(sigmoid_xg)                                                  # -> (batch, H, W, 1)
+    )(sigmoid_xg)                                                  
 
     # elementwise multiply will automatically broadcast the 1-channel mask
-    y = multiply([upsampled, x])                                   # -> (batch, H, W, Cx)
+    y = multiply([upsampled, x])                                   
     return y
 
 '''
