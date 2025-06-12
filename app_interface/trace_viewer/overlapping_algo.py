@@ -29,7 +29,11 @@ def extract_overlap(img_path1, img_path2, out1='overlap_1.png', out2='overlap_2.
     pts1 = np.float32([kp1[m.queryIdx].pt for m in matches]).reshape(-1,1,2)
     pts2 = np.float32([kp2[m.trainIdx].pt for m in matches]).reshape(-1,1,2)
 
+<<<<<<< small_bug_fixes
     # Compute homography (img1 - img2)
+=======
+    # Compute homography (img1 → img2)
+>>>>>>> main
     H, _ = cv2.findHomography(pts1, pts2, cv2.RANSAC, 5.0)
 
     # Project img1 corners into img2 frame
