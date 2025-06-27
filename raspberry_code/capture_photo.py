@@ -12,9 +12,6 @@ import argparse
 stop_event = threading.Event()
 
 def mavlink_thread(port, baud, output_file):
-    """
-    Open a MAVLink connection and write only GPS related messages to a file.
-    """
     # Initialize the MAVLink connection on the given serial port and baud rate
     master = mavutil.mavlink_connection(port, baud=baud)
     print(f"[MAVLINK] Connected to {port} at {baud} bps")
@@ -51,9 +48,9 @@ def camera_thread(output_folder, interval, count):
     """
     Configure Picamera2 and capture a fixed number of images at a set interval.
     """
-    # Create Picamera2 instance (the newer official Raspberry Pi Python API)
+    # Create Picamera2 instance 
     picam2 = Picamera2()
-    # Ensure the output directory exists (no error if it already exists)
+    # Ensure the output directory exists 
     os.makedirs(output_folder, exist_ok=True)
 
     # Configure the camera for still captures at 1280×720 resolution
@@ -77,15 +74,6 @@ def camera_thread(output_folder, interval, count):
         # Write the image to disk in JPEG format
         cv2.imwrite(filename, image)
         print(f"[CAMERA] Captured {filename} at {time.strftime('%Y-%m-%d %H:%M:%S')}")
-        
-        # Sleep half the interval before and after a hypothetical LED blink
-        # (the LED on/off commands are commented out below)
-        time.sleep(interval / 2)
-        # Turn LED on (commented out; uncomment if you have a status LED wired)
-        # os.system("sudo bash -c 'echo 1 > /sys/class/leds/led0/brightness'")
-        time.sleep(interval / 2)
-        # Turn LED off
-        # os.system("sudo bash -c 'echo 0 > /sys/class/leds/led0/brightness'")
 
     # Stop the camera when complete or when interrupted
     picam2.stop()
@@ -102,7 +90,7 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    # Define the serial port and baud rate for MAVLink (UART on Raspberry Pi)
+    # Define the serial port and baud rate for MAVLink 
     port = "/dev/ttyAMA0"
     baud = 115200
     # Set the camera output folder from command‐line argument
@@ -127,7 +115,7 @@ if __name__ == "__main__":
     t2.start()
 
     try:
-        # Wait for the camera thread to finish (or until user interrupts)
+        # Wait for the camera thread to finish 
         t2.join()
     except KeyboardInterrupt:
         print("\n[MAIN] Interrupted by user")
