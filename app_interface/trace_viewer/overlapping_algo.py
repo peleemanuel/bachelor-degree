@@ -9,11 +9,6 @@ import detectree as dtr
 from matplotlib.widgets import Button
 
 def extract_overlap(img_path1, img_path2, out1='overlap_1.png', out2='overlap_2.png'):
-    """
-    Detects the overlapping region between two images (img1 → img2 via homography),
-    then crops and pads both images so that the overlap area is saved into two
-    same-sized PNG files: out1 (from img1) and out2 (from img2).
-    """
     # Load images
     img1 = cv2.imread(img_path1)
     img2 = cv2.imread(img_path2)
@@ -29,7 +24,7 @@ def extract_overlap(img_path1, img_path2, out1='overlap_1.png', out2='overlap_2.
     pts1 = np.float32([kp1[m.queryIdx].pt for m in matches]).reshape(-1,1,2)
     pts2 = np.float32([kp2[m.trainIdx].pt for m in matches]).reshape(-1,1,2)
 
-    # Compute homography (img1 → img2)
+    # Compute homography (img1 - img2)
     H, _ = cv2.findHomography(pts1, pts2, cv2.RANSAC, 5.0)
 
     # Project img1 corners into img2 frame

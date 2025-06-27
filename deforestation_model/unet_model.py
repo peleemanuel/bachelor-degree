@@ -50,25 +50,20 @@ def convBlock2(input, filters, kernel, kernel_init='he_normal', act='relu', tran
   Attention block/mechanism
 '''
 def attention_block(x, gating, inter_shape, drop_rate=0.25):
-    """
-    x:      Tensor(shape=(batch, H, W, Cx))
-    gating: Tensor(shape=(batch, h, w, Cg))
-    inter_shape: number of filters for the attention intermediate convs
-    """
     # 1x1 conv + downsample x
     theta_x = Conv2D(inter_shape, kernel_size=1, padding='same')(x)
-    theta_x = MaxPooling2D(pool_size=(2,2))(theta_x)               # -> (batch, H/2, W/2, inter_shape)
+    theta_x = MaxPooling2D(pool_size=(2,2))(theta_x)
 
     # 1x1 conv on gating signal
-    phi_g = Conv2D(inter_shape, kernel_size=1, padding='same')(gating)  # -> (batch, H/2, W/2, inter_shape)
+    phi_g = Conv2D(inter_shape, kernel_size=1, padding='same')(gating)
 
     # combine and run through activation + conv
     add_xg = add([phi_g, theta_x])
     act_xg = Activation('relu')(add_xg)
-    psi    = Conv2D(1, kernel_size=1, padding='same')(act_xg)       # -> (batch, H/2, W/2, 1)
-    sigmoid_xg = Activation('sigmoid')(psi)                         # same shape
+    psi    = Conv2D(1, kernel_size=1, padding='same')(act_xg)       
+    sigmoid_xg = Activation('sigmoid')(psi)
 
-    # upsample mask back to x’s spatial dims
+    # upsample mask back to x spatial dims
     shape_x = K.int_shape(x)
     upsampled = UpSampling2D(
         size=(
@@ -76,10 +71,10 @@ def attention_block(x, gating, inter_shape, drop_rate=0.25):
             shape_x[2] // K.int_shape(sigmoid_xg)[2]
         ),
         interpolation='bilinear'
-    )(sigmoid_xg)                                                  # -> (batch, H, W, 1)
+    )(sigmoid_xg)                                                  
 
     # elementwise multiply will automatically broadcast the 1-channel mask
-    y = multiply([upsampled, x])                                   # -> (batch, H, W, Cx)
+    y = multiply([upsampled, x])                                   
     return y
 
 '''
@@ -95,22 +90,18 @@ def UNetAM(trained_weights = None, input_size = (512,512,3), drop_rate = 0.25, l
 
     ## Contraction phase
     conv = convBlock2(inputs, filter_base, 3)
-    #conv0 = Dropout(drop_rate)(conv0)
 
     conv0 = MaxPooling2D(pool_size=(2, 2))(conv)
     conv0 = convBlock2(conv0, 2 * filter_base, 3)
 
     pool0 = MaxPooling2D(pool_size=(2, 2))(conv0)
     conv1 = convBlock2(pool0, 4 * filter_base, 3)
-    #conv1 = Dropout(drop_rate)(conv1)
 
     pool1 = MaxPooling2D(pool_size=(2, 2))(conv1)
     conv2 = convBlock2(pool1, 8 * filter_base, 3)
-    #conv2 = Dropout(drop_rate)(conv2)
 
     pool2 = MaxPooling2D(pool_size=(2, 2))(conv2)
     conv3 = convBlock2(pool2, 16 * filter_base, 3)
-    #conv3 = Dropout(drop_rate)(conv3)
 
     ## Expansion phase
     up4 = (Conv2DTranspose(8 * filter_base, kernel_size=2, strides=2, kernel_initializer='he_normal')(conv3))

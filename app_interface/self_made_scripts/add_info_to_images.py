@@ -107,11 +107,6 @@ def parse_log_for_image_indices(log_path: str):
     return mapping
 
 def annotate_images(folder_path: str, gps_objects: list):
-    """
-    For each image in the folder, overlay 'lat, lon, alt_agl' text,
-    save to 'annotated/', then inject GPS EXIF tags.
-    """
-
     folder_name = os.path.basename(folder_path)
     if folder_name.startswith("captures_"):
         date = folder_name.split("_", 1)[1]
@@ -131,11 +126,6 @@ def annotate_images(folder_path: str, gps_objects: list):
     out_dir = os.path.join(folder_path, "annotated")
     os.makedirs(out_dir, exist_ok=True)
 
-    try:
-        font = ImageFont.truetype("arial.ttf", 20)
-    except IOError:
-        font = ImageFont.load_default()
-
     for img_name, idx in image_to_index.items():
         img_path = os.path.join(folder_path, img_name)
         if not os.path.isfile(img_path):
@@ -147,26 +137,7 @@ def annotate_images(folder_path: str, gps_objects: list):
             continue
 
         gps_obj = gps_objects[idx]
-        text = (
-            f"lat: {gps_obj.latitude_deg:.6f}\n"
-            f"lon: {gps_obj.longitude_deg:.6f}\n"
-            f"alt AGL: {gps_obj.altitude_agl_m:.2f} m"
-        )
-
-        img = Image.open(img_path).convert("RGBA")
-        draw = ImageDraw.Draw(img)
-
-        x, y = 10, 10
-        fill_color = (255, 255, 255, 255)
-        outline_color = (0, 0, 0, 255)
-
-        for dx, dy in [(-1,0), (1,0), (0,-1), (0,1)]:
-            draw.text((x+dx, y+dy), text, font=font, fill=outline_color)
-        draw.text((x, y), text, font=font, fill=fill_color)
-
         out_path = os.path.join(out_dir, img_name)
-        img.convert("RGB").save(out_path, "JPEG")
-        print(f"[OK] Annotated '{img_name}' -> saved to '{out_path}'.")
 
         inject_gps_exif(
             out_path,

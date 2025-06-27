@@ -1,5 +1,3 @@
-# tests/test_drones.py
-
 import pytest
 from trace_viewer.drones import DroneRegistry, DroneSpec, DroneType
 

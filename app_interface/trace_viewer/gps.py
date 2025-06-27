@@ -1,4 +1,3 @@
-# gps.py
 import piexif
 from typing import Optional
 from PIL import Image

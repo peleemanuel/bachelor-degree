@@ -1,4 +1,3 @@
-# imagery_math.py
 import math
 from typing import Tuple, List
 

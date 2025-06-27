@@ -1,6 +1,5 @@
-# .github/workflows/ci.yml
 
-name: CI (Pytest + Pylint)
+name: CI (Pytest)
 
 on:
   push:
@@ -36,41 +35,3 @@ jobs:
         working-directory: app_interface
         run: |
           pytest -v --maxfail=1 --disable-warnings
-
-  lint:
-    runs-on: ubuntu-latest
-
-    steps:
-      # Check out the repository
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      # Set up Python 3.11
-      - name: Set up Python 3.11
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-          cache: 'pip'
-
-      # Install dependencies (including pylint)
-      - name: Install dependencies + pylint
-        working-directory: app_interface
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install pylint
-
-      # Run pylint on the entire package
-      - name: Run pylint
-        working-directory: app_interface
-        run: |
-          # Run pylint against the 'app_interface' package
-          pylint app_interface --rcfile=.pylintrc || true
-
-      # Save Pylint score as an output
-      - name: Extract Pylint score
-        working-directory: app_interface
-        id: pylint-score
-        run: |
-          SCORE=$(pylint app_interface --rcfile=.pylintrc | grep "Your code has been rated at" || echo "")
-          echo "pylint_score=$SCORE" >> $GITHUB_OUTPUT

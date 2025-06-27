@@ -14,10 +14,6 @@ from rasterio.features import rasterize
 from skimage import exposure
 
 class PatchSequence(Sequence):
-    """
-    Streams 512x512 patches from a GeoTIFF and its full-scene mask (.npy) on the fly.
-    Supports flexible single-band to RGB conversion via histogram stretching and colormap.
-    """
     def __init__(self, img_path, mask_path, windows, batch_size=4,
                  normalize=True, colormap='viridis', stretch_percent=(2, 98), **kwargs):
         # Allow Keras to pass through workers/use_multiprocessing kwargs
